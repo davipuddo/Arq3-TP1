@@ -1,5 +1,8 @@
+`include "cache_def.sv"
+
+import cache_def::*;
+
 //simulated memory
-import cache_def::*; 
 
 `timescale 1ns/1ps
 
@@ -8,8 +11,8 @@ class rand_cl;
 endclass
 
 module sim_mem(input bit clk,
-               input  mem_req_type  req,
-               output mem_data_type data);
+               input  mem_req_t  req,
+               output mem_data_t data);
         default clocking cb @(posedge clk);
         endclocking
  
@@ -19,16 +22,16 @@ module sim_mem(input bit clk,
         rand_cl rand_data = new();
 
         always @(posedge clk) begin
-              data.valid = '0;
+              data.ready = '0;
 
               if (!mem.exists(req.addr)) begin        //random initialize DRAM data on-demand 
-                      rand_data.randomize();
+                      void'(rand_data.randomize());
                       mem[req.addr] = rand_data.v;     
               end
 
 
               if (req.valid) begin
-                $display("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr, 
+                $dumpvars("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr, 
                         (req.rw) ? req.data : mem[req.addr]);
                 ##MEM_DELAY;
                 if (req.rw)
@@ -37,8 +40,8 @@ module sim_mem(input bit clk,
                         data.data = mem[req.addr];             
                 end
 
-                $display("%t: [Memory] request finished", $time);
-                data.valid = '1;                                
+                $dumpvars("%t: [Memory] request finished", $time);
+                data.ready = '1;                                
               end
         end 
 endmodule 
@@ -48,10 +51,10 @@ module test_main;
         bit clk;       
         initial forever #2 clk = ~clk; 
 
-        mem_req_type    mem_req;        
-        mem_data_type   mem_data;
-        iu_req_type     iu_req;
-        iu_result_type  iu_res;
+        mem_req_t       mem_req;        
+        mem_data_t      mem_data;
+        cpu_req_t       iu_req;
+        cpu_result_t    iu_res;
        
         bit     rst;
         
@@ -59,8 +62,8 @@ module test_main;
         endclocking
  
         //simulated CPU
-       program sim_cpu;
         initial begin
+            $dumpfile("dump.vcd");
                rst = '0;
                ##5;                           
                rst = '1;
@@ -79,18 +82,18 @@ module test_main;
                iu_req.addr[13:4] = 2;           //index 2
                iu_req.addr[31:14] = 'h1234;
                iu_req.valid = '1;
-               $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] get data=%x", $time, iu_res.data);
+               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr);
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data);
                iu_req.valid = '0;
                ##5;
 
                //read hit clean line
                iu_req.addr[3:0] = 8;
                iu_req.valid = '1;
-               $display("%t: [CPU] read addr=%x", $time, iu_req.addr); 
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] get data=%x", $time, iu_res.data); 
+               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr); 
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
                iu_req.valid = '0;
                ##5;
  
@@ -99,9 +102,9 @@ module test_main;
                iu_req.addr[3:0] = 'ha;
                iu_req.data = 32'hdeadbeef;
                iu_req.valid = '1;
-               $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] write done", $time); 
+               $dumpvars("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] write done", $time); 
                iu_req.valid = '0;
                ##5;
  
@@ -109,9 +112,9 @@ module test_main;
                iu_req.addr[31:14] = 'h4321;               
                iu_req.data = 32'hcafebeef;
                iu_req.valid = '1;
-               $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data); 
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] write done", $time);
+               $dumpvars("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data); 
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] write done", $time);
                iu_req.valid = '0;
                ##5;
  
@@ -119,9 +122,9 @@ module test_main;
                iu_req.rw = '0;
                iu_req.addr[3:0] = '0;
                iu_req.valid = '1; 
-               $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] get data=%x", $time, iu_res.data); 
+               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr);
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
                iu_req.valid = '0;
                ##5;
  
@@ -129,16 +132,21 @@ module test_main;
                iu_req.addr[31:14] = 'h5678;
                iu_req.addr[3:0] = 4;
                iu_req.valid = '1;
-               $display("%t: [CPU] read addr=%x", $time, iu_req.addr); 
-               wait(iu_res.valid == '1);
-               $display("%t: [CPU] get data=%x", $time, iu_res.data); 
+               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr); 
+               wait(iu_res.ready == '1);
+               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
                iu_req.valid = '0;
                ##5; 
 
                $finish();
          end
-        endprogram
-        
-        dm_cache_fsm dm_cache_inst(.*);
+        dm_cache_fsm dm_cache_inst(
+                .clk(clk),
+                .rst(rst),
+                .cpu_req(iu_req),
+                .mem_data(mem_data),
+                .mem_req(mem_req),
+                .cpu_res(iu_res)
+        );
         sim_mem      dram_inst(.*, .req(mem_req), .data(mem_data));
 endmodule

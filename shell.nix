@@ -6,6 +6,7 @@ pkgs.mkShell {
         verilator
         python313
         gcc
+        gtkwave
     ];
 
     shellHook = ''
