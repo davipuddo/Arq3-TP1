@@ -1,4 +1,4 @@
-`include "cache_def.sv"
+`include "./src/cache_def.sv"
 
 import cache_def::*;
 

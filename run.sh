@@ -1,10 +1,20 @@
 #!/bin/sh
 
+file=$1
 name=$"${1%.*}"
-verilator --binary src/$1 -o $name -Mdir target 
-echo ""
-echo ""
-echo ""
+
+comp() {
+    verilator --timing -Wno-UNOPTFLAT --binary src/$file -o $name -Mdir target $1
+}
+
+if [ $# == 1 ]; then
+    comp
+else [ $# == 2 ] && [ "$2" == "--dump" ]
+    comp "--trace"
+fi
+
+printf "\n\n\n"
+
 if [ -f ./target/$name ]; then
     ./target/$name
 else
