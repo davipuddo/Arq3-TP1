@@ -10,12 +10,14 @@ class rand_cl;
    rand bit [127:0] v;
 endclass
 
-module sim_mem(input bit clk,
-               input  mem_req_t  req,
-               output mem_data_t data);
+module sim_mem(
+            input bit clk,
+            input  MemRequest req,
+            output MemData data
+        );
         default clocking cb @(posedge clk);
         endclocking
- 
+
         localparam MEM_DELAY = 100;
 
         bit [127:0] mem[*];
@@ -24,129 +26,127 @@ module sim_mem(input bit clk,
         always @(posedge clk) begin
               data.ready = '0;
 
-              if (!mem.exists(req.addr)) begin        //random initialize DRAM data on-demand 
-                      void'(rand_data.randomize());
-                      mem[req.addr] = rand_data.v;     
+              if (!mem.exists(req.addr)) begin        //random initialize DRAM data on-demand
+                      rand_data.randomize();
+                      mem[req.addr] = rand_data.v;
               end
 
 
               if (req.valid) begin
-                $dumpvars("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr, 
+                $display("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr,
                         (req.rw) ? req.data : mem[req.addr]);
                 ##MEM_DELAY;
                 if (req.rw)
                         mem[req.addr] = req.data;
                 else begin
-                        data.data = mem[req.addr];             
+                        data.data = mem[req.addr];
                 end
 
-                $dumpvars("%t: [Memory] request finished", $time);
-                data.ready = '1;                                
+                $display("%t: [Memory] request finished", $time);
+                data.ready = '1;
               end
-        end 
-endmodule 
-
+        end
+endmodule
 
 module test_main;
-        bit clk;       
-        initial forever #2 clk = ~clk; 
+        bit clk;
+        initial forever #2 clk = ~clk;
 
-        mem_req_t       mem_req;        
-        mem_data_t      mem_data;
-        cpu_req_t       iu_req;
-        cpu_result_t    iu_res;
-       
-        bit     rst;
-        
+        MemRequest mem_req;
+        MemData mem_data;
+        CPURequest iu_req;
+        CPUResult iu_res;
+
+        bit rst;
+
         default clocking cb @(posedge clk);
         endclocking
- 
+
         //simulated CPU
         initial begin
-            $dumpfile("dump.vcd");
-               rst = '0;
-               ##5;                           
-               rst = '1;
-               ##10;
-               rst = '0;
+            rst = '0;
+            ##5;
+            rst = '1;
+            ##10;
+            rst = '0;
 
-               iu_req = '{default:0};
-               
-               //note that: The CPU needs to reset all cache tags in a real ASIC implementation
-               //In this testbench, all tags are automatically initialized to 0 because the use of the systemverilog bit data type
-               //For an FPGA implementation, all RAMs are initialized to be 0 by default.
-               //read clean miss (allocate)                
-               $timeformat(-9, 3, "ns", 10);
+            iu_req = '{default:0};
 
-               iu_req.rw = '0;
-               iu_req.addr[13:4] = 2;           //index 2
-               iu_req.addr[31:14] = 'h1234;
-               iu_req.valid = '1;
-               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr);
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data);
-               iu_req.valid = '0;
-               ##5;
+            //note that: The CPU needs to reset all cache tags in a real ASIC implementation
+            //In this testbench, all tags are automatically initialized to 0 because the use of the systemverilog bit data type
+            //For an FPGA implementation, all RAMs are initialized to be 0 by default.
+            //read clean miss (allocate)
+            $timeformat(-9, 3, "ns", 10);
 
-               //read hit clean line
-               iu_req.addr[3:0] = 8;
-               iu_req.valid = '1;
-               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr); 
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
-               iu_req.valid = '0;
-               ##5;
- 
-               //write hit clean line (cache line is dirty afterwards)
-               iu_req.rw = '1;
-               iu_req.addr[3:0] = 'ha;
-               iu_req.data = 32'hdeadbeef;
-               iu_req.valid = '1;
-               $dumpvars("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] write done", $time); 
-               iu_req.valid = '0;
-               ##5;
- 
-               //write conflict miss (write back then allocate, cache line dirty)
-               iu_req.addr[31:14] = 'h4321;               
-               iu_req.data = 32'hcafebeef;
-               iu_req.valid = '1;
-               $dumpvars("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data); 
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] write done", $time);
-               iu_req.valid = '0;
-               ##5;
- 
-               //read hit dirty line
-               iu_req.rw = '0;
-               iu_req.addr[3:0] = '0;
-               iu_req.valid = '1; 
-               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr);
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
-               iu_req.valid = '0;
-               ##5;
- 
-               //read conflict miss dirty line (write back then allocate, cache line is clean)  
-               iu_req.addr[31:14] = 'h5678;
-               iu_req.addr[3:0] = 4;
-               iu_req.valid = '1;
-               $dumpvars("%t: [CPU] read addr=%x", $time, iu_req.addr); 
-               wait(iu_res.ready == '1);
-               $dumpvars("%t: [CPU] get data=%x", $time, iu_res.data); 
-               iu_req.valid = '0;
-               ##5; 
+            iu_req.rw = '0;
+            iu_req.addr[13:4] = 2;           //index 2
+            iu_req.addr[31:14] = 'h1234;
+            iu_req.valid = '1;
+            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] get data=%x", $time, iu_res.data);
+            iu_req.valid = '0;
+            ##5;
 
-               $finish();
-         end
-        dm_cache_fsm dm_cache_inst(
-                .clk(clk),
-                .rst(rst),
-                .cpu_req(iu_req),
-                .mem_data(mem_data),
-                .mem_req(mem_req),
-                .cpu_res(iu_res)
-        );
-        sim_mem      dram_inst(.*, .req(mem_req), .data(mem_data));
+            //read hit clean line
+            iu_req.addr[3:0] = 8;
+            iu_req.valid = '1;
+            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] get data=%x", $time, iu_res.data);
+            iu_req.valid = '0;
+            ##5;
+
+            //write hit clean line (cache line is dirty afterwards)
+            iu_req.rw = '1;
+            iu_req.addr[3:0] = 'ha;
+            iu_req.data = 32'hdeadbeef;
+            iu_req.valid = '1;
+            $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] write done", $time);
+            iu_req.valid = '0;
+            ##5;
+
+            //write conflict miss (write back then allocate, cache line dirty)
+            iu_req.addr[31:14] = 'h4321;
+            iu_req.data = 32'hcafebeef;
+            iu_req.valid = '1;
+            $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] write done", $time);
+            iu_req.valid = '0;
+            ##5;
+
+            //read hit dirty line
+            iu_req.rw = '0;
+            iu_req.addr[3:0] = '0;
+            iu_req.valid = '1;
+            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] get data=%x", $time, iu_res.data);
+            iu_req.valid = '0;
+            ##5;
+
+            //read conflict miss dirty line (write back then allocate, cache line is clean)
+            iu_req.addr[31:14] = 'h5678;
+            iu_req.addr[3:0] = 4;
+            iu_req.valid = '1;
+            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            wait(iu_res.ready == '1);
+            $display("%t: [CPU] get data=%x", $time, iu_res.data);
+            iu_req.valid = '0;
+            ##5;
+
+            $finish();
+        end
+    dm_cache_fsm dm_cache_inst(
+        .clk(clk),
+        .rst(rst),
+        .cpu_req(iu_req),
+        .mem_data(mem_data),
+        .mem_req(mem_req),
+        .cpu_res(iu_res)
+    );
+    sim_mem dram_inst(.*, .req(mem_req), .data(mem_data));
 endmodule

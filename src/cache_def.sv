@@ -10,48 +10,52 @@ package cache_def;
         bit valid; //valid bit
         bit dirty; //dirty bit
         bit [TAGMSB:TAGLSB] tag; //tag bits
-    } cache_tag_t;
+    } tag_t;
+    typedef tag_t Tag;
 
-    //data structure for cache memory request
+    // cache memory request
     typedef struct {
-        bit [9:0] index; //10-bit index
-        bit we;          //write enable
+        bit [9:0] index; // line index
+        bit we;          // write enable
     } cache_req_t;
+    typedef cache_req_t CacheRequest;
 
-    //128-bit cache line data
-    typedef bit [127:0] cache_data_t;
+    // Cache data request
+    typedef struct {
+        bit [31:0] addr; //32-bit request addr
+        bit [127:0] data; //32-bit request data (used when write)
+        bit rw;          //request type : 0 = read, 1 = write
+        bit valid;       //request is valid
+    } mem_req_t;
+    typedef mem_req_t MemRequest;
 
-    // data structures for CPU<->Cache controller interface
-    // CPU request (CPU->cache controller)
+    // 128-bit cache line data
+    typedef bit [127:0] CacheLine;
+
+    // Cache data request
     typedef struct {
         bit [31:0] addr; //32-bit request addr
         bit [31:0] data; //32-bit request data (used when write)
         bit rw;          //request type : 0 = read, 1 = write
         bit valid;       //request is valid
-    } cpu_req_t;
+    } cpu_request_t;
+    typedef cpu_request_t CPURequest;
 
     // Cache result (cache controller->cpu)
     typedef struct {
         bit [31:0] data; //32-bit data
         bit ready;       //result is ready
     } cpu_result_t;
+    typedef cpu_result_t CPUResult;
 
     //----------------------------------------------------------------------
 
-    // data structures for cache controller<->memory interface
-    // memory request (cache controller->memory)
-    typedef struct {
-        bit [31:0] addr;  //request byte addr
-        bit [127:0] data; //128-bit request data (used when write)
-        bit rw;           //request type : 0 = read, 1 = write
-        bit valid;        //request is valid
-    } mem_req_t;
-
     // memory controller response (memory -> cache controller)
     typedef struct {
-        cache_data_t data; //128-bit read back data
+        CacheLine data; //128-bit read back data
         bit ready;            //data is ready
     } mem_data_t;
+    typedef mem_data_t MemData;
 
 endpackage
 
@@ -60,55 +64,59 @@ import cache_def::*;
 /*cache: data memory, single port, 1024 blocks*/
 module dm_cache_data(
         input bit clk,
-        input cache_req_t data_req,              //data request/command, e.g. RW, valid
-        input cache_data_t data_write,           //write port (128-bit line)
-        output cache_data_t data_read            //read port
+        input CacheRequest data_req,           //data request/command, e.g. RW, valid
+        input CacheLine data_write,           //write port (128-bit line)
+        output CacheLine data_read            //read port
     );
     timeunit 1ns; timeprecision 1ps;
 
-    cache_data_t data_mem[1024];
+    CacheLine data_mem[1024];
 
     initial begin
-            for (int i=0; i<1024; i++)
-                data_mem[i] = '0;
-    end
-    assign data_read = data_mem[data_req.index];
-    always_ff @(posedge(clk)) begin
-        if (data_req.we)
-            data_mem[data_req.index] <= data_write;
-    end
+        for (int i=0; i<1024; i++)
+            data_mem[i] = '0;
+        end
+        assign data_read = data_mem[data_req.index];
+        always_ff @(posedge(clk)) begin
+            if (data_req.we)
+                data_mem[data_req.index] <= data_write;
+        end
 endmodule
 
 /*cache: tag memory, single port, 1024 blocks*/
 module dm_cache_tag(
         input bit clk, //write clock
-        input cache_req_t tag_req,       //tag request/command, e.g. RW, valid
-        input cache_tag_t tag_write,     //write port
-        output cache_tag_t tag_read      //read port
+        input CacheRequest tag_req,       //tag request/command, e.g. RW, valid
+        input Tag tag_write,     //write port
+        output Tag tag_read      //read port
     );
     timeunit 1ns; timeprecision 1ps;
 
-    cache_tag_t tag_mem[1024];
+    Tag tag_mem[1024];
 
     initial begin
         for (int i=0; i<1024; i++)
             tag_mem[i] = '0;
     end
+
     assign tag_read = tag_mem[tag_req.index];
+
     always_ff @(posedge(clk)) begin
         if (tag_req.we)
             tag_mem[tag_req.index] <= tag_write;
     end
+
 endmodule
 
 
 /*cache finite state machine*/
 module dm_cache_fsm(
-        input bit clk, input bit rst,
-        input cpu_req_t cpu_req,     //CPU request input (CPU->cache)
-        input mem_data_t mem_data,   //memory response (memory->cache)
-        output mem_req_t mem_req,    //memory request (cache->memory)
-        output cpu_result_t cpu_res  //cache result (cache->CPU)
+        input bit clk,
+        input bit rst,
+        input CPURequest cpu_req,     //CPU request input (CPU->cache)
+        input MemData mem_data,   //memory response (memory->cache)
+        output MemRequest mem_req,    //memory request (cache->memory)
+        output CPUResult cpu_res  //cache result (cache->CPU)
     );
 
     timeunit 1ns; timeprecision 1ps;
@@ -120,26 +128,27 @@ module dm_cache_fsm(
         allocate,
         write_back
     } cache_state_t;
+    typedef cache_state_t CacheState;
 
     /*FSM state register*/
-    cache_state_t vstate, rstate;
+    CacheState vstate, rstate;
 
     /*interface signals to tag memory*/
-    cache_tag_t tag_read;       //tag read result
-    cache_tag_t tag_write;      //tag write data
-    cache_req_t tag_req;        //tag request
+    Tag tag_read;                //tag read result
+    Tag tag_write;               //tag write data
+    CacheRequest tag_req;        //tag request
 
     /*interface signals to cache data memory*/
-    cache_data_t data_read;     //cache line read data
-    cache_data_t data_write;    //cache line write data
-    cache_req_t data_req;       //data req
+    CacheLine data_read;     //cache line read data
+    CacheLine data_write;    //cache line write data
+    CacheRequest data_req;   //data req
 
     /*temporary variable for cache controller result*/
-    cpu_result_t v_cpu_res;
+    CPUResult v_cpu_res;
 
     /*temporary variable for memory controller request*/
-    mem_req_t v_mem_req;
-    assign mem_req = v_mem_req; //connect to output ports
+    MemRequest v_mem_req;
+    assign mem_req = v_mem_req;         //connect to output ports
     assign cpu_res = v_cpu_res;
 
     always_comb begin
@@ -163,6 +172,7 @@ module dm_cache_fsm(
 
         /*modify correct word (32-bit) based on address*/
         data_write = data_read;
+
         case (cpu_req.addr[3:2])
             2'b00:data_write[31:0] = cpu_req.data;
             2'b01:data_write[63:32] = cpu_req.data;
