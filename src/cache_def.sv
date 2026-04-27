@@ -6,6 +6,9 @@ package cache_def;
     parameter int TAGMSB = 31;
     parameter int TAGLSB = 14;
 
+    // 128-bit cache line data
+    typedef bit [127:0] CacheLine;
+
     typedef struct packed {
         bit valid; //valid bit
         bit dirty; //dirty bit
@@ -20,19 +23,8 @@ package cache_def;
     } cache_req_t;
     typedef cache_req_t CacheRequest;
 
-    // Cache data request
-    typedef struct {
-        bit [31:0] addr; //32-bit request addr
-        bit [127:0] data; //32-bit request data (used when write)
-        bit rw;          //request type : 0 = read, 1 = write
-        bit valid;       //request is valid
-    } mem_req_t;
-    typedef mem_req_t MemRequest;
-
-    // 128-bit cache line data
-    typedef bit [127:0] CacheLine;
-
-    // Cache data request
+    // Data structures for CPU<->Cache Controller interface
+    // CPU Request (CPU->Cache controller)
     typedef struct {
         bit [31:0] addr; //32-bit request addr
         bit [31:0] data; //32-bit request data (used when write)
@@ -47,6 +39,16 @@ package cache_def;
         bit ready;       //result is ready
     } cpu_result_t;
     typedef cpu_result_t CPUResult;
+
+    // data structures for cache controller<->memory interface
+    // memory request (cache controller->memory)
+    typedef struct {
+        bit [31:0] addr; //32-bit request addr
+        bit [127:0] data; //32-bit request data (used when write)
+        bit rw;          //request type : 0 = read, 1 = write
+        bit valid;       //request is valid
+    } mem_req_t;
+    typedef mem_req_t MemRequest;
 
     //----------------------------------------------------------------------
 
