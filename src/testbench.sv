@@ -27,7 +27,7 @@ module sim_mem(
               data.ready = '0;
 
               if (!mem.exists(req.addr)) begin        //random initialize DRAM data on-demand
-                      rand_data.randomize();
+                      void'(rand_data.randomize());
                       mem[req.addr] = rand_data.v;
               end
 
