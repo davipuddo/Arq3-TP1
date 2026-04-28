@@ -118,9 +118,9 @@ module test_main;
             iu_req.valid = '0;
             ##5;
 
-            //read hit dirty line
+            //read hit dirty line from the same word written above
             iu_req.rw = '0;
-            iu_req.addr[3:0] = '0;
+            iu_req.addr[3:0] = 'ha;
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
             wait(iu_res.ready == '1);

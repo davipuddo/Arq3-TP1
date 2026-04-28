@@ -158,7 +158,9 @@ module dm_cache_fsm(
         /*no state change by default*/
 
         vstate = rstate;
-        v_cpu_res = '{0, 0}; tag_write = '{0, 0, 0};
+        v_cpu_res = '{0, 0};
+        tag_write = '{0, 0, 0};
+        v_mem_req = '{default:0};
 
         /*read tag by default*/
         tag_req.we = '0;
@@ -256,6 +258,10 @@ module dm_cache_fsm(
 
             /*wait for allocating a new cache line*/
             allocate: begin
+                /*keep the refill request asserted until memory responds*/
+                v_mem_req.valid = '1;
+                v_mem_req.rw = '0;
+
                 /*memory controller has responded*/
                 if (mem_data.ready) begin
                     /*re-compare tag for write miss (need modify correct word)*/
