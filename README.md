@@ -1,4 +1,4 @@
-# 📘 Trabalho Prático 2 — Arquitetura de Computadores
+# 📘 Trabalho Prático — Arquitetura de Computadores
 
 Este repositório contém a implementação e o relatório de um projeto acadêmico voltado ao estudo de **arquitetura de processadores**, com foco em um processador baseado na arquitetura **RISC-V** com pipeline de cinco estágios.
 
