@@ -20,19 +20,20 @@ module sim_mem(
 
         localparam MEM_DELAY = 100;
 
-        bit [127:0] mem[reg[26:0]];
+        bit [127:0] mem[reg[29:0]];
+        //bit [127:0] mem[*];
         rand_cl rand_data = new();
 
         bit [29:0] actual_addr;
 
         always @(posedge clk) begin
-              actual_addr = req.addr[31:2];
+              actual_addr = req.addr[29:0];
               data.ready = '0;
 
               if (!mem.exists(actual_addr)) begin        //random initialize DRAM data on-demand
                       void'(rand_data.randomize());
                       mem[actual_addr] = rand_data.v;
-                      $display("SHOULD HAVE RANDOM'D -> %x", mem[actual_addr]);
+                      // $display("SHOULD HAVE RANDOM'D -> %x", mem[actual_addr]);
                       mem[actual_addr] = rand_data.v;
               end
 
