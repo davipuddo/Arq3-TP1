@@ -20,19 +20,20 @@ module sim_mem(
 
         localparam MEM_DELAY = 100;
 
-        bit [127:0] mem[*];
+        bit [127:0] mem[reg[29:0]];
+        //bit [127:0] mem[*];
         rand_cl rand_data = new();
 
         bit [29:0] actual_addr;
 
         always @(posedge clk) begin
-              actual_addr = req.addr[31:2];
+              actual_addr = req.addr[29:0];
               data.ready = '0;
 
               if (!mem.exists(actual_addr)) begin        //random initialize DRAM data on-demand
                       void'(rand_data.randomize());
                       mem[actual_addr] = rand_data.v;
-                      $display("SHOULD HAVE RANDOM'D -> %x", mem[actual_addr]);
+                      // $display("SHOULD HAVE RANDOM'D -> %x", mem[actual_addr]);
                       mem[actual_addr] = rand_data.v;
               end
 
@@ -85,7 +86,7 @@ module test_main;
 
             iu_req.rw = '0;
             iu_req.addr[11:2] = 2;           //index 2
-            iu_req.addr[31:12] = 'h12345;
+            iu_req.addr[31:12] = 'h00345;
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
                 iu_req.addr,
@@ -130,7 +131,7 @@ module test_main;
             ##5;
 
             //write conflict miss (write back then allocate, cache line dirty)
-            iu_req.addr[31:12] = 'h43215;
+            iu_req.addr[31:12] = 'h00215;
             iu_req.data = 32'hcafebeef;
             iu_req.valid = '1;
             $display("%t: [CPU] write addr=%x | tag=%x | index=%x | offset=%x with data=%x", $time,
@@ -161,7 +162,7 @@ module test_main;
             ##5;
 
             //read conflict miss dirty line (write back then allocate, cache line is clean)
-            iu_req.addr[31:12] = 'h56789;
+            iu_req.addr[31:12] = 'h00789;
             iu_req.addr[1:0] = 'b0;         // Offset
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
