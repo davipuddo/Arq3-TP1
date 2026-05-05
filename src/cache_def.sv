@@ -4,7 +4,7 @@ package cache_def;
 
     // data structures for cache tag & data
     parameter int TAGMSB = 31;
-    parameter int TAGLSB = 14;
+    parameter int TAGLSB = 12;
 
     // 128-bit cache line data
     typedef bit [127:0] CacheLine;
@@ -166,18 +166,18 @@ module dm_cache_fsm(
         tag_req.we = '0;
 
         /*direct map index for tag*/
-        tag_req.index = cpu_req.addr[13:4];
+        tag_req.index = cpu_req.addr[11:2];
 
         /*read current cache line by default*/
         data_req.we = '0;
 
         /*direct map index for cache data*/
-        data_req.index = cpu_req.addr[13:4];
+        data_req.index = cpu_req.addr[11:2];
 
         /*modify correct word (32-bit) based on address*/
         data_write = data_read;
 
-        case (cpu_req.addr[3:2])
+        case (cpu_req.addr[1:0])
             2'b00:data_write[31:0] = cpu_req.data;
             2'b01:data_write[63:32] = cpu_req.data;
             2'b10:data_write[95:64] = cpu_req.data;
@@ -185,7 +185,7 @@ module dm_cache_fsm(
         endcase
 
         /*read out correct word(32-bit) from cache (to CPU)*/
-        case (cpu_req.addr[3:2])
+        case (cpu_req.addr[1:0])
             2'b00:v_cpu_res.data = data_read[31:0];
             2'b01:v_cpu_res.data = data_read[63:32];
             2'b10:v_cpu_res.data = data_read[95:64];

@@ -79,14 +79,14 @@ module test_main;
             $timeformat(-9, 3, "ns", 10);
 
             iu_req.rw = '0;
-            iu_req.addr[13:4] = 2;           //index 2
-            iu_req.addr[31:14] = 'h1234;
+            iu_req.addr[11:2] = 2;           //index 2
+            iu_req.addr[31:12] = 'h12345;
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0]
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0]
             );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
@@ -94,13 +94,13 @@ module test_main;
             ##5;
 
             //read hit clean line
-            iu_req.addr[3:0] = 8;
+            iu_req.addr[1:0] = 'b0;   // Offset
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0]
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0]
             );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
@@ -109,14 +109,14 @@ module test_main;
 
             //write hit clean line (cache line is dirty afterwards)
             iu_req.rw = '1;
-            iu_req.addr[3:0] = 'ha;
+            iu_req.addr[1:0] = 'b10;   // Offset
             iu_req.data = 32'hdeadbeef;
             iu_req.valid = '1;
             $display("%t: [CPU] write addr=%x | tag=%x | index=%x | offset=%x with data=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0],
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0],
                 iu_req.data
             );
             wait(iu_res.ready == '1);
@@ -125,14 +125,14 @@ module test_main;
             ##5;
 
             //write conflict miss (write back then allocate, cache line dirty)
-            iu_req.addr[31:14] = 'h4321;
+            iu_req.addr[31:12] = 'h43215;
             iu_req.data = 32'hcafebeef;
             iu_req.valid = '1;
             $display("%t: [CPU] write addr=%x | tag=%x | index=%x | offset=%x with data=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0],
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0],
                 iu_req.data
             );
             wait(iu_res.ready == '1);
@@ -142,13 +142,13 @@ module test_main;
 
             //read hit dirty line from the same word written above
             iu_req.rw = '0;
-            iu_req.addr[3:0] = 'ha;
+            iu_req.addr[1:0] = 'b10;            // Offset
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0]
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0]
             );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
@@ -156,14 +156,14 @@ module test_main;
             ##5;
 
             //read conflict miss dirty line (write back then allocate, cache line is clean)
-            iu_req.addr[31:14] = 'h5678;
-            iu_req.addr[3:0] = 4;
+            iu_req.addr[31:12] = 'h56789;
+            iu_req.addr[1:0] = 'b0;         // Offset
             iu_req.valid = '1;
             $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
                 iu_req.addr,
-                iu_req.addr[31:14],
-                iu_req.addr[13:4],
-                iu_req.addr[3:0]
+                iu_req.addr[31:12],
+                iu_req.addr[11:2],
+                iu_req.addr[1:0]
             );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
