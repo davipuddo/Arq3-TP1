@@ -23,23 +23,28 @@ module sim_mem(
         bit [127:0] mem[*];
         rand_cl rand_data = new();
 
+        bit [29:0] actual_addr;
+
         always @(posedge clk) begin
+              actual_addr = req.addr[31:2];
               data.ready = '0;
 
-              if (!mem.exists(req.addr)) begin        //random initialize DRAM data on-demand
+              if (!mem.exists(actual_addr)) begin        //random initialize DRAM data on-demand
                       void'(rand_data.randomize());
-                      mem[req.addr] = rand_data.v;
+                      mem[actual_addr] = rand_data.v;
+                      $display("SHOULD HAVE RANDOM'D -> %x", mem[actual_addr]);
+                      mem[actual_addr] = rand_data.v;
               end
 
 
               if (req.valid) begin
                 $display("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr,
-                        (req.rw) ? req.data : mem[req.addr]);
-                ##MEM_DELAY;
+                        (req.rw) ? req.data : mem[actual_addr]);
+                ##MEM_DELAY
                 if (req.rw)
-                        mem[req.addr] = req.data;
+                        mem[actual_addr] = req.data;
                 else begin
-                        data.data = mem[req.addr];
+                        data.data = mem[actual_addr];
                 end
 
                 $display("%t: [Memory] request finished", $time);
