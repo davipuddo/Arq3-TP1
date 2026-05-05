@@ -82,7 +82,12 @@ module test_main;
             iu_req.addr[13:4] = 2;           //index 2
             iu_req.addr[31:14] = 'h1234;
             iu_req.valid = '1;
-            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0]
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
             iu_req.valid = '0;
@@ -91,7 +96,12 @@ module test_main;
             //read hit clean line
             iu_req.addr[3:0] = 8;
             iu_req.valid = '1;
-            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0]
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
             iu_req.valid = '0;
@@ -102,7 +112,13 @@ module test_main;
             iu_req.addr[3:0] = 'ha;
             iu_req.data = 32'hdeadbeef;
             iu_req.valid = '1;
-            $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
+            $display("%t: [CPU] write addr=%x | tag=%x | index=%x | offset=%x with data=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0],
+                iu_req.data
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] write done", $time);
             iu_req.valid = '0;
@@ -112,7 +128,13 @@ module test_main;
             iu_req.addr[31:14] = 'h4321;
             iu_req.data = 32'hcafebeef;
             iu_req.valid = '1;
-            $display("%t: [CPU] write addr=%x with data=%x", $time, iu_req.addr, iu_req.data);
+            $display("%t: [CPU] write addr=%x | tag=%x | index=%x | offset=%x with data=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0],
+                iu_req.data
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] write done", $time);
             iu_req.valid = '0;
@@ -122,7 +144,12 @@ module test_main;
             iu_req.rw = '0;
             iu_req.addr[3:0] = 'ha;
             iu_req.valid = '1;
-            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0]
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
             iu_req.valid = '0;
@@ -132,7 +159,12 @@ module test_main;
             iu_req.addr[31:14] = 'h5678;
             iu_req.addr[3:0] = 4;
             iu_req.valid = '1;
-            $display("%t: [CPU] read addr=%x", $time, iu_req.addr);
+            $display("%t: [CPU] read addr=%x | tag=%x | index=%x | offset=%x", $time,
+                iu_req.addr,
+                iu_req.addr[31:14],
+                iu_req.addr[13:4],
+                iu_req.addr[3:0]
+            );
             wait(iu_res.ready == '1);
             $display("%t: [CPU] get data=%x", $time, iu_res.data);
             iu_req.valid = '0;
