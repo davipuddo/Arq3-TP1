@@ -37,6 +37,9 @@ package cache_def;
     typedef struct {
         bit [31:0] data; //32-bit data
         bit ready;       //result is ready
+        bit hit;         //last request hit status
+        bit write_back;  //last request write back status
+        Tag line_tag;         //last request tag state
     } cpu_result_t;
     typedef cpu_result_t CPUResult;
 
@@ -135,6 +138,9 @@ module dm_cache_fsm(
     /*FSM state register*/
     CacheState vstate, rstate;
 
+    bit vhit, rhit;
+    bit vwb, rwb;
+
     /*interface signals to tag memory*/
     Tag tag_read;                //tag read result
     Tag tag_write;               //tag write data
@@ -158,7 +164,11 @@ module dm_cache_fsm(
         /*no state change by default*/
 
         vstate = rstate;
-        v_cpu_res = '{0, 0};
+
+        vhit = rhit;
+        vwb = rwb;
+
+        v_cpu_res = '{default:0};
         tag_write = '{0, 0, 0};
         v_mem_req = '{default:0};
 
@@ -204,14 +214,21 @@ module dm_cache_fsm(
             /*idle state*/
             idle : begin
                 /*If there is a CPU request, then compare cache tag*/
-                if (cpu_req.valid)
+                if (cpu_req.valid) begin
+                    /*set hit flag*/
+                    vhit = '1;
+                    vwb = '0;
                     vstate = compare_tag;
                 end
+            end
 
             /*compare_tag state*/
             compare_tag : begin
                 /*cache hit (tag match and cache entry is valid)*/
                 if (cpu_req.addr[TAGMSB:TAGLSB] == tag_read.tag && tag_read.valid) begin
+                    v_cpu_res.hit = rhit;
+                    v_cpu_res.write_back = rwb; 
+                    v_cpu_res.line_tag = tag_read;
                     v_cpu_res.ready = '1;
                     /*write hit*/
                     if (cpu_req.rw) begin
@@ -227,7 +244,9 @@ module dm_cache_fsm(
                     vstate = idle;
                 end
                 else begin   /*cache miss*/
-
+                    /*reset miss flag*/
+                    vhit = '1;
+                
                     /*generate new tag*/
                     tag_req.we = '1;
                     tag_write.valid = '1;
@@ -280,18 +299,22 @@ module dm_cache_fsm(
                     v_mem_req.valid = '1;
                     v_mem_req.rw = '0;
                     vstate = allocate;
+                    vwb = '1;
                 end
             end
         endcase
     end
 
     always_ff @(posedge(clk)) begin
-        if (rst)
+        if (rst) begin
             rstate <= idle; // reset to idle state
-                // <-
-        else
+            rhit <= '0;
+            rwb <= '0;
+        end else begin
             rstate <= vstate;
-                // <-
+            rhit <= vhit;
+            rwb <= vwb;
+        end
     end
 
     /*connect cache tag/data memory*/
