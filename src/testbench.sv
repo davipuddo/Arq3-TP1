@@ -40,8 +40,8 @@ module sim_mem(
 
 
               if (req.valid) begin
-                $display("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr,
-                        (req.rw) ? req.data : mem[actual_addr]);
+                /*$display("%t: [Memory] %s @ addr=%x with data=%x", $time, (req.rw) ? "Write" : "Read", req.addr,
+                        (req.rw) ? req.data : mem[actual_addr]);*/
                 ##MEM_DELAY
                 if (req.rw)
                         mem[actual_addr] = req.data;
@@ -49,7 +49,7 @@ module sim_mem(
                         data.data = mem[actual_addr];
                 end
 
-                $display("%t: [Memory] request finished", $time);
+                /*$display("%t: [Memory] request finished", $time);*/
                 data.ready = '1;
               end
         end
@@ -70,6 +70,7 @@ module test_main;
         bit prev_hit;
         bit prev_wb;
         bit prev_valid;
+        bit prev_dirty;
         bit[19:0] prev_tag;
 
         default clocking cb @(posedge clk);
@@ -122,19 +123,20 @@ module test_main;
             /* 7.1.1 Access with cache hit -----------------------------------------*/
 
             `mksection("7.1.1", "Access with cache hit");
-           
             read(0);
+            iu_req.valid = 0;
+            #5;
             read(0);
-            `check_test("checking hit on read", iu_res.hit, 1, &);
+            prev_hit = iu_res.hit;
+            `check_test("checking hit on read", prev_hit, 1, ==);            
 
             /*----------------------------------------------------------------------*/
 
             /* 7.1.2 Access with cache hit followed by memory load -----------------*/
+
             `mksection("7.1.2", "Access with cache hit followed by memory load");
-                        
             write('h00000000, 'hF00DCAFE);
             write('h00001000, 'hCAFEBABE);
-
             read('h00000000);
             prev_data = iu_res.data; 
             #5;
@@ -145,153 +147,149 @@ module test_main;
             );
             `check_test(
                 "checking miss on read", 
-                ~iu_res.hit, 1, &
+                iu_res.hit, 0, ==
             );
 
             /*----------------------------------------------------------------------*/
 
             /* 7.1.3 Tag & valid bit values ----------------------------------------*/
-            `mksection("7.1.3", "Tag & valid bit values");
 
+            `mksection("7.1.3", "Tag & valid bit values");
             read('hCAFFE000);
             `check_test(
-                "checking tag value",
+                "checking tag value after allocation",
                 iu_res.line_tag.tag, 'hCAFFE, ==
             );
             `check_test(
-                "checking valid bit value",
+                "checking valid bit value after allocation",
                 iu_res.line_tag.valid, '0, ==
             );
             read('hCAFFE000);
             `check_test(
-                "checking valid bit value",
+                "checking valid bit value on hit",
                 iu_res.line_tag.valid, '1, ==
             );
 
             /* 7.2.1 Write with hit ------------------------------------------------*/
+
             `mksection("7.2.1", "Write with hit");
             read('h00002000);
             `check_test("allocating block for write", iu_res.hit, 0, ==);
             write('h00002000, 'hDEADBEEF);
-            prev_hit = iu_res.hit;
-            `check_test("checking write hit", prev_hit, 1, ==);
+            `check_test("checking write hit", iu_res.hit, 1, ==);
             read('h00002000);
-            prev_data = iu_res.data;
-            `check_test("checking data written on hit", prev_data, 'hDEADBEEF, ==);
+            `check_test("checking data written on hit", iu_res.data, 'hDEADBEEF, ==);
 
             /*----------------------------------------------------------------------*/
             
             /* 7.2.2 Write with miss -----------------------------------------------*/
+
             `mksection("7.2.2", "Write with miss");
             write('h00003000, 'hBEEFCAFE);
-            prev_hit = iu_res.hit;
-            `check_test("checking write miss", prev_hit, 0, ==);
+            `check_test("checking write miss", iu_res.hit, 0, ==);
             read('h00003000);
-            prev_data = iu_res.data;
-            `check_test("checking data written on miss", prev_data, 'hBEEFCAFE, ==);
+            `check_test("checking data written on miss", iu_res.data, 'hBEEFCAFE, ==);
 
             /*----------------------------------------------------------------------*/
             
             /* 7.2.3 Write policy --------------------------------------------------*/
+
             `mksection("7.2.3", "Write policy");
             write('h00004000, 'h12345678);
             `check_test("allocating for policy check", iu_res.hit, 0, ==);
             read('h00004000);
-            prev_hit = iu_res.line_tag.dirty; // Note: using prev_hit as a generic bit
-            `check_test("checking dirty bit on write", prev_hit, 1, ==);
+            `check_test("checking dirty bit on write", iu_res.line_tag.dirty, 1, ==);
 
             /*----------------------------------------------------------------------*/
             
             /* 7.3.1 Cache fill & block substitution -------------------------------*/
+
             `mksection("7.3.1", "Cache fill & block substitution");
             read('h00005000);
             `check_test("checking fill miss", iu_res.hit, 0, ==);
             read('h00006000);
-            prev_hit = iu_res.hit;
-            `check_test("checking substitution miss", prev_hit, 0, ==);
+            `check_test("checking substitution miss", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
             
             /* 7.3.2 Cache substitution policy -------------------------------------*/
+
             `mksection("7.3.2", "Cache substitution policy");
             read('h00005000);
             prev_hit = iu_res.hit;
-            `check_test("checking direct mapped eviction", prev_hit, 0, ==);
+            `check_test("checking direct mapped eviction", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.3.3 Write-back ----------------------------------------------------*/
+
             `mksection("7.3.3", "Write-back");
             write('h00007000, 'hAABBCCDD);
             `check_test("write allocating 7000", iu_res.hit, 0, ==);
             read('h00008000);
-            prev_wb = iu_res.write_back;
-            `check_test("checking write-back occurred", prev_wb, 1, ==);
+            `check_test("checking write-back occurred", iu_res.write_back, 1, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.4.1 Data coherence ------------------------------------------------*/
+
             `mksection("7.4.1", "Data coherence");
             write('h00009000, 'h99999999);
             `check_test("write allocating 9000", iu_res.hit, 0, ==);
             read('h00009000);
-            prev_data = iu_res.data;
-            `check_test("checking data coherence read after write", prev_data, 'h99999999, ==);
+            `check_test("checking data coherence read after write", iu_res.data, 'h99999999, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.4.2 Repeated address access ---------------------------------------*/
+
             `mksection("7.4.2", "Repeated address access");
             read('h0000A000);
             `check_test("first read miss", iu_res.hit, 0, ==);
             read('h0000A000);
-            prev_hit = iu_res.hit;
-            `check_test("checking hit on repeated access", prev_hit, 1, ==);
+            `check_test("checking hit on repeated access", iu_res.hit, 1, ==);
             read('h0000A000);
-            prev_hit = iu_res.hit;
-            `check_test("checking hit on 3rd access", prev_hit, 1, ==);
+            `check_test("checking hit on 3rd access", iu_res.hit, 1, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.4.3 Conflicts -----------------------------------------------------*/
+            
             `mksection("7.4.3", "Conflicts");
             read('h0000B000);
             `check_test("first read B000", iu_res.hit, 0, ==);
             read('h0000C000);
             `check_test("first read C000", iu_res.hit, 0, ==);
             read('h0000B000);
-            prev_hit = iu_res.hit;
-            `check_test("checking conflict miss", prev_hit, 0, ==);
+            `check_test("checking conflict miss", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.5.1 Edge case access ----------------------------------------------*/
+
             `mksection("7.5.1", "Edge case access");
             read('hFFFFFFFF);
-            prev_hit = iu_res.hit;
-            `check_test("checking edge case miss FFFFFFFF", prev_hit, 0, ==);
+            `check_test("checking edge case miss FFFFFFFF", iu_res.hit, 0, ==);
             read('hFFFFFFF0);
-            prev_hit = iu_res.hit;
-            `check_test("checking edge case FFFFFFF0", prev_hit, 0, ==);
+            `check_test("checking edge case FFFFFFF0", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.5.2 Cache initialization ------------------------------------------*/
+
             `mksection("7.5.2", "Cache initialization");
             read('h0000D000);
-            prev_hit = iu_res.hit;
-            `check_test("checking initialization miss on untouched address", prev_hit, 0, ==);
+            `check_test("checking initialization miss on untouched address", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
 
             /* 7.5.3 Fully invalid cache behavior ----------------------------------*/
+
             `mksection("7.5.3", "Fully invalid cache behavior");
             read('h0000E000);
-            prev_hit = iu_res.hit;
-            `check_test("checking miss E000", prev_hit, 0, ==);
+            `check_test("checking miss E000", iu_res.hit, 0, ==);
             read('h0000F000);
-            prev_hit = iu_res.hit;
-            `check_test("checking miss F000", prev_hit, 0, ==);
+            `check_test("checking miss F000", iu_res.hit, 0, ==);
 
             /*----------------------------------------------------------------------*/
 

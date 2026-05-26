@@ -1,0 +1,26 @@
+7. Testes Mínimos Obrigatórios
+Para garantir a validação funcional do controlador de cache, o projeto deve incluir, no mínimo,
+os seguintes cenários de teste:
+7.1 Testes de Leitura (Read Path)
+● Acesso com cache hit (dados já presentes na cache);
+● Acesso com cache miss, seguido de carregamento da memória principal;
+● Verificação da atualização correta dos bits de controle (valid, tag).
+7.2 Testes de Escrita (Write Path)
+● Escrita com hit (atualização direta na cache);
+● Escrita com miss (comportamento conforme política adotada: write-allocate ou
+no-write-allocate);
+● Validação da política de escrita:
+○ write-through, ou
+○ write-back (incluindo uso do bit dirty).
+7.3 Testes de Substituição
+● Preenchimento completo da cache e substituição de blocos;
+● Validação da política de substituição (ex.: LRU, FIFO ou outra adotada);
+● Verificação de escrita em memória em caso de bloco dirty (write-back).
+7.4 Testes de Consistência
+● Sequências de operações leitura/escrita que validem coerência dos dados;
+● Acessos repetidos ao mesmo endereço;
+● Acessos a diferentes endereços que mapeiam para o mesmo índice (conflitos).
+7.5 Testes de Casos Limite
+● Acessos a endereços extremos;
+● Inicialização da cache (estado vazio);
+● Verificação de comportamento com cache completamente inválida.

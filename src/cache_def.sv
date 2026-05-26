@@ -245,7 +245,7 @@ module dm_cache_fsm(
                 end
                 else begin   /*cache miss*/
                     /*reset miss flag*/
-                    vhit = '1;
+                    vhit = '0;
                 
                     /*generate new tag*/
                     tag_req.we = '1;
